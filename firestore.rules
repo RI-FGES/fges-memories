@@ -1,0 +1,178 @@
+rules_version = '2';
+
+// Règles de sécurité de FGES Memories.
+// Déploiement : firebase deploy --only firestore:rules  (ou copier-coller dans Console Firebase > Firestore > Règles)
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Fonctions utilitaires ----------
+
+    function connecte() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function emailPerso() {
+      return request.auth.token.email.lower();
+    }
+
+    // Membre de l'équipe RI : une fiche existe dans /admins/{email}
+    function estAdmin() {
+      return connecte() && exists(/databases/$(database)/documents/admins/$(emailPerso()));
+    }
+
+    // Étudiant en échange : son adresse figure sur la liste /sortants/{email}, tenue par le service RI
+    // (email vérifié obligatoire : la connexion par lien email le garantit).
+    // Comptes de test (créés à la main dans la console Firebase, email non vérifié) :
+    // acceptés seulement s'ils sont sur la liste avec le groupe « Test ».
+    function estSortant() {
+      return connecte()
+        && exists(/databases/$(database)/documents/sortants/$(emailPerso()))
+        && (request.auth.token.email_verified == true
+            || get(/databases/$(database)/documents/sortants/$(emailPerso())).data.get('groupe', '') == 'Test');
+    }
+
+    // Accès à la partie étudiante : étudiants en échange et équipe RI
+    function membre() {
+      return estSortant() || estAdmin();
+    }
+
+    function campagne(id) {
+      return get(/databases/$(database)/documents/campagnes/$(id)).data;
+    }
+
+    // ---------- Équipe RI ----------
+
+    match /admins/{email} {
+      // chacun peut vérifier s'il est admin ; les admins voient toute la liste
+      allow read: if connecte() && (emailPerso() == email || estAdmin());
+      allow write: if estAdmin();
+    }
+
+    // ---------- Liste des étudiants en échange (seuls autorisés sur la plateforme) ----------
+
+    match /sortants/{email} {
+      // chacun peut seulement vérifier s'il est sur la liste ; le service RI gère toute la liste
+      allow get: if connecte() && emailPerso() == email;
+      allow read, write: if estAdmin();
+    }
+
+    // ---------- Campagnes (S1, S2…) ----------
+
+    match /campagnes/{campagneId} {
+      allow read: if membre();
+      allow write: if estAdmin();
+    }
+
+    // ---------- Souvenirs ----------
+
+    match /medias/{mediaId} {
+      allow read: if estAdmin()
+        || (membre() && (resource.data.statut == 'accepte' || resource.data.uid == request.auth.uid));
+
+      allow create: if membre()
+        && request.resource.data.keys().hasOnly([
+          'uid', 'email', 'prenom_nom', 'filiere', 'duree', 'pays', 'ville', 'universite',
+          'titre', 'caption', 'type', 'slot', 'fichier_url', 'cloudinary_public_id', 'resource_type',
+          'statut', 'campagneId', 'created_at'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.statut == 'en_attente'
+        && request.resource.data.type in ['Photo', 'Vidéo']
+        && request.resource.data.titre is string
+        && request.resource.data.titre.size() > 0
+        && request.resource.data.titre.size() <= 60
+        && (!('caption' in request.resource.data)
+            || (request.resource.data.caption is string && request.resource.data.caption.size() <= 150))
+        && request.resource.data.fichier_url is string
+        && request.resource.data.fichier_url.matches('https://res[.]cloudinary[.]com/.*')
+        // uniquement pendant la période de dépôt de la campagne
+        && request.time >= campagne(request.resource.data.campagneId).debutDepots
+        && request.time <= campagne(request.resource.data.campagneId).finDepots
+        // limite de dépôts : chaque dépôt occupe un emplacement numéroté, dont l'identifiant est fixe
+        // ({campagneId}_{uid}_{photo|video}_{n}) : on ne peut donc pas en créer plus que le maximum
+        && request.resource.data.slot is int
+        && request.resource.data.slot >= 1
+        && request.resource.data.slot <= (request.resource.data.type == 'Photo'
+             ? campagne(request.resource.data.campagneId).get('maxPhotos', 1)
+             : campagne(request.resource.data.campagneId).get('maxVideos', 1))
+        && mediaId == request.resource.data.campagneId + '_' + request.auth.uid + '_'
+             + (request.resource.data.type == 'Photo' ? 'photo' : 'video') + '_' + string(request.resource.data.slot);
+
+      // validation, rattachement à une campagne : réservé au service RI.
+      // Exception : le compteur de likes (nbLikes) bouge de +1 / -1, uniquement en même temps
+      // que la création / suppression du like de l'étudiant (écriture groupée).
+      allow update: if estAdmin()
+        // l'étudiant corrige la légende et le texte de son souvenir, tant qu'il n'est pas validé
+        || (membre()
+          && resource.data.uid == request.auth.uid
+          && resource.data.statut == 'en_attente'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['titre', 'caption'])
+          && request.resource.data.titre is string
+          && request.resource.data.titre.size() > 0
+          && request.resource.data.titre.size() <= 60
+          && (!('caption' in request.resource.data)
+              || (request.resource.data.caption is string && request.resource.data.caption.size() <= 150)))
+        || (membre()
+          && resource.data.statut == 'accepte'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nbLikes'])
+          && (
+            (request.resource.data.nbLikes == resource.data.get('nbLikes', 0) + 1
+              && !exists(/databases/$(database)/documents/likes/$(mediaId + '_' + request.auth.uid))
+              && existsAfter(/databases/$(database)/documents/likes/$(mediaId + '_' + request.auth.uid)))
+            || (request.resource.data.nbLikes == resource.data.get('nbLikes', 0) - 1
+              && exists(/databases/$(database)/documents/likes/$(mediaId + '_' + request.auth.uid))
+              && !existsAfter(/databases/$(database)/documents/likes/$(mediaId + '_' + request.auth.uid)))
+          ));
+
+      // l'étudiant peut retirer son dépôt tant qu'il n'est pas publié
+      allow delete: if estAdmin()
+        || (membre() && resource.data.uid == request.auth.uid && resource.data.statut != 'accepte');
+    }
+
+    // ---------- Likes (publics, 1 par étudiant et par souvenir) ----------
+
+    match /likes/{likeId} {
+      allow read: if membre();
+
+      allow create: if membre()
+        && request.resource.data.keys().hasOnly(['uid', 'mediaId', 'campagneId', 'created_at'])
+        && request.resource.data.uid == request.auth.uid
+        && likeId == request.resource.data.mediaId + '_' + request.auth.uid
+        && get(/databases/$(database)/documents/medias/$(request.resource.data.mediaId)).data.statut == 'accepte'
+        && get(/databases/$(database)/documents/medias/$(request.resource.data.mediaId)).data.campagneId == request.resource.data.campagneId
+        // le compteur du souvenir doit augmenter de 1 dans la même écriture
+        && getAfter(/databases/$(database)/documents/medias/$(request.resource.data.mediaId)).data.get('nbLikes', 0)
+           == get(/databases/$(database)/documents/medias/$(request.resource.data.mediaId)).data.get('nbLikes', 0) + 1;
+
+      // l'étudiant retire son like : le compteur doit baisser de 1 dans la même écriture
+      allow delete: if estAdmin() || (membre() && resource.data.uid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/medias/$(resource.data.mediaId)).data.get('nbLikes', 0)
+           == get(/databases/$(database)/documents/medias/$(resource.data.mediaId)).data.get('nbLikes', 0) - 1);
+      allow update: if false;
+    }
+
+    // ---------- Bulletins de vote (privés, 1 par étudiant et par campagne) ----------
+    // Identifiant : {campagneId}_{uid}
+
+    match /bulletins/{bulletinId} {
+      allow read: if estAdmin()
+        || (connecte() && bulletinId.split('_').size() == 2 && bulletinId.split('_')[1] == request.auth.uid);
+
+      allow create, update: if membre()
+        && request.resource.data.keys().hasOnly(['uid', 'campagneId', 'photo', 'video', 'updated_at'])
+        && request.resource.data.uid == request.auth.uid
+        && bulletinId == request.resource.data.campagneId + '_' + request.auth.uid
+        && request.resource.data.photo is list
+        && request.resource.data.video is list
+        && request.resource.data.photo.size() <= campagne(request.resource.data.campagneId).get('nbVotesPhoto', 1)
+        && request.resource.data.video.size() <= campagne(request.resource.data.campagneId).get('nbVotesVideo', 1)
+        // uniquement pendant la période de vote
+        && request.time >= campagne(request.resource.data.campagneId).debutVotes
+        && request.time <= campagne(request.resource.data.campagneId).finVotes;
+
+      allow delete: if estAdmin();
+    }
+
+    // Tout le reste (dont l'ancienne collection "parametres" et ses mots de passe) est fermé.
+  }
+}

@@ -1,0 +1,20 @@
+# Dépendances (réinstallées avec npm install)
+node_modules/
+functions/node_modules/
+
+# Version compilée du site
+dist/
+
+# Réglages secrets : ne jamais envoyer sur GitHub (le modèle .env.example, lui, est partagé)
+.env
+.env.*
+!.env.example
+
+# Dossiers de travail
+Claude outputs/
+_a_supprimer/
+
+# Fichiers système et journaux
+.DS_Store
+*.log
+.firebase/

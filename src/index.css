@@ -1,0 +1,99 @@
+/* ============================================================
+   FGES Memories — bases et variables
+   Toutes les couleurs, polices et arrondis sont ici :
+   changer une variable met à jour tout le site.
+   ============================================================ */
+
+:root {
+  /* Couleurs FGES */
+  --marine: #002d6a;
+  --marine-2: #1d4a8a;
+  --marine-3: #2f5c9e;
+  --turquoise: #29b2be;
+  --turquoise-texte: #0e6e77;     /* turquoise lisible sur fond clair */
+  --turquoise-clair: #9fd3d8;
+
+  /* Couleur chaude (énergie) */
+  --corail: #ff7a59;
+  --corail-texte: #b8432b;        /* corail lisible sur fond clair */
+  --corail-fond: #fff1ea;
+  --corail-bord: #ffc2ad;
+  --or: #e8c77a;
+
+  /* Papier & encre */
+  --papier: #faf6ef;
+  --papier-2: #efe6d6;
+  --carte: #fffdf8;
+  --blanc: #ffffff;
+  --encre: #1f2a44;
+  --texte: #3d3a33;
+  --texte-doux: #6b6457;
+  --trait: #d9cfbd;
+  --trait-doux: #e6dccb;
+
+  /* États */
+  --succes: #2e7d32;
+  --succes-fond: #e6f4ea;
+  --danger: #b3261e;
+  --danger-fond: #fff5f5;
+  --attente: #b35c00;
+  --attente-fond: #fff4e0;
+
+  /* Polices */
+  --police-titre: 'Bricolage Grotesque', system-ui, sans-serif;
+  --police-texte: 'DM Sans', system-ui, sans-serif;
+  --police-main: 'Caveat', cursive;
+
+  /* Formes */
+  --arrondi: 12px;
+  --arrondi-grand: 18px;
+  --ombre-papier: 0 1px 2px rgba(20, 20, 19, 0.08), 0 10px 26px rgba(20, 20, 19, 0.10);
+  --ombre-haute: 0 2px 4px rgba(20, 20, 19, 0.08), 0 24px 60px rgba(0, 45, 106, 0.18);
+
+  --largeur-page: 1280px;
+  --gouttiere: clamp(16px, 5vw, 64px);
+
+  color-scheme: light;
+  font-family: var(--police-texte);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--encre);
+  background: var(--papier);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  background: var(--papier);
+}
+
+h1, h2, h3, p, figure, dl, dd, ol, ul { margin: 0; }
+ol, ul { padding: 0; }
+
+img, video { display: block; max-width: 100%; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+
+a { color: var(--marine); }
+a:hover { color: var(--corail-texte); }
+
+:focus-visible {
+  outline: 3px solid var(--turquoise);
+  outline-offset: 2px;
+}
+
+/* Respect des personnes qui désactivent les animations */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
