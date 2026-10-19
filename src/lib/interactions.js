@@ -65,7 +65,9 @@ export function useMediasCampagne(campagneId) {
 // Le nombre de likes est stocké directement sur chaque souvenir (champ nbLikes) :
 // la galerie ne lit plus tous les likes de la campagne, seulement ceux de l'étudiant.
 
-export function useInteractions(campagne, uid) {
+// idsValides : identifiants des souvenirs encore publiés (null tant qu'ils chargent).
+// Un vote pour un souvenir supprimé ou dépublié ne compte plus et libère sa place.
+export function useInteractions(campagne, uid, idsValides = null) {
   const campagneId = campagne?.id
   const [mesLikesEtat, setMesLikes] = useState({ campagneId: null, ids: new Set() })
   const [bulletinEtat, setBulletin] = useState({ campagneId: null, photo: [], video: [] })
@@ -98,9 +100,11 @@ export function useInteractions(campagne, uid) {
     () => (mesLikesEtat.campagneId === campagneId ? mesLikesEtat.ids : new Set()),
     [mesLikesEtat, campagneId],
   )
-  const bulletin = useMemo(() => (bulletinEtat.campagneId === campagneId
-    ? { photo: bulletinEtat.photo, video: bulletinEtat.video }
-    : { photo: [], video: [] }), [bulletinEtat, campagneId])
+  const bulletin = useMemo(() => {
+    if (bulletinEtat.campagneId !== campagneId) return { photo: [], video: [] }
+    const garder = (ids) => (idsValides ? ids.filter(id => idsValides.has(id)) : ids)
+    return { photo: garder(bulletinEtat.photo), video: garder(bulletinEtat.video) }
+  }, [bulletinEtat, campagneId, idsValides])
   const ajust = useMemo(
     () => (ajustements.campagneId === campagneId ? ajustements.map : {}),
     [ajustements, campagneId],

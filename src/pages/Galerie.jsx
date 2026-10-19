@@ -17,7 +17,9 @@ export default function Galerie() {
   const campagne = campagnes.find(c => c.id === campagneId) || active
 
   const { medias, chargement } = useMediasCampagne(campagne?.id)
-  const { nbLikes, mesLikes, bulletin, basculerLike, basculerVote } = useInteractions(campagne, user?.uid)
+  // Souvenirs encore publiés : un vote pour un souvenir supprimé ne compte plus
+  const idsValides = useMemo(() => (chargement ? null : new Set(medias.map(m => m.id))), [medias, chargement])
+  const { nbLikes, mesLikes, bulletin, basculerLike, basculerVote } = useInteractions(campagne, user?.uid, idsValides)
   const phase = phaseCampagne(campagne)
 
   const [filtreType, setFiltreType] = useState('Tous')

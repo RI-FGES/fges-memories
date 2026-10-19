@@ -252,7 +252,7 @@ function TableauDeBord() {
 
           {sectionAffichee === 'apercu' && campagne && (
             <VueEnsemble campagne={campagne} campagnes={campagnes} onChange={rafraichirCampagnes} enAttente={enAttente} publies={publies} deCampagne={deCampagne}
-              participants={participants} nbInscrits={sortants.length} nbPays={nbPays} nbLikes={interactions.nbLikes} nbVotants={nbVotants}
+              participants={participants} nbInscrits={sortants.length} nbPays={nbPays} nbLikes={publies.reduce((total, m) => total + (interactions.likes[m.id] || 0), 0)} nbVotants={nbVotants}
               likes={interactions.likes} votes={votes} allerA={setSection} />
           )}
           {sectionAffichee === 'attente' && campagne && (
