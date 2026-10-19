@@ -56,6 +56,14 @@ service cloud.firestore {
       allow read, write: if estAdmin();
     }
 
+    // ---------- Textes du site modifiables par le service RI ----------
+    // Lisibles par tous (y compris le message « Accès refusé »), modifiables par le service RI seulement
+
+    match /contenus/{id} {
+      allow read: if true;
+      allow write: if estAdmin();
+    }
+
     // ---------- Campagnes (S1, S2…) ----------
 
     match /campagnes/{campagneId} {

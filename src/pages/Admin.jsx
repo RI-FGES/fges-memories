@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { collection, getDocs } from 'firebase/firestore'
+import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../auth/contexte'
 import CampagnesProvider from '../components/CampagnesProvider'
 import { useCampagnes, phaseCampagne, formatDate, versDate } from '../lib/campagnes'
-import { chargerInteractions, compterVotes, synchroniserCompteurs } from '../lib/statistiques'
+import { ecouterInteractions, compterVotes, synchroniserCompteurs } from '../lib/statistiques'
 import CartePostale from '../components/CartePostale'
 import AdminConnexion from './admin/AdminConnexion'
 import EnAttente from './admin/EnAttente'
@@ -15,18 +15,10 @@ import Campagne from './admin/Campagne'
 import Parametres from './admin/Parametres'
 import Etudiants from './admin/Etudiants'
 import FinCampagne from './admin/FinCampagne'
+import Textes from './admin/Textes'
 import { exporterCSV } from './admin/outils'
 
-async function lireTousLesMedias() {
-  const snap = await getDocs(collection(db, 'medias'))
-  const liste = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-  return liste.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
-}
-
-async function lireSortants() {
-  const snap = await getDocs(collection(db, 'sortants'))
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-}
+const trierParDate = (liste) => liste.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
 
 function Kpi({ valeur, label, accent }) {
   return (
@@ -131,6 +123,7 @@ const SECTIONS = [
   { id: 'votes', label: 'Votes & lauréats' },
   { id: 'etudiants', label: 'Étudiants autorisés' },
   { id: 'campagne', label: 'Campagne & dates' },
+  { id: 'textes', label: 'Textes du site' },
   { id: 'parametres', label: 'Paramètres' },
 ]
 
@@ -143,29 +136,27 @@ function TableauDeBord() {
   const [medias, setMedias] = useState([])
   const [sortants, setSortants] = useState([])
   const [interactions, setInteractions] = useState({ campagneId: null, likes: {}, nbLikes: 0, bulletins: [] })
-  const [version, setVersion] = useState(0) // incrémentée pour tout recharger
   const [ouvert, setOuvert] = useState(null)
   const fermer = useCallback(() => setOuvert(null), [])
-  const toutRecharger = useCallback(() => setVersion(v => v + 1), [])
+  // Tout se met à jour en direct (écoute Firebase) : plus besoin de bouton « Actualiser ».
+  // Gardé pour les sections qui le demandent après une action : il n'a plus rien à faire.
+  const toutRecharger = useCallback(() => {}, [])
 
-  useEffect(() => {
-    lireTousLesMedias()
-      .then(setMedias)
-      .catch(e => window.alert('Impossible de charger les médias : ' + e.message))
-  }, [version])
+  // Tous les souvenirs, en direct (nouveaux dépôts, corrections de légende, likes…)
+  useEffect(() => onSnapshot(collection(db, 'medias'),
+    snap => setMedias(trierParDate(snap.docs.map(d => ({ id: d.id, ...d.data() })))),
+    e => window.alert('Impossible de charger les médias : ' + e.message)), [])
 
-  useEffect(() => {
-    lireSortants()
-      .then(setSortants)
-      .catch(e => console.error('Liste des étudiants indisponible', e))
-  }, [version])
+  // Liste des étudiants autorisés, en direct
+  useEffect(() => onSnapshot(collection(db, 'sortants'),
+    snap => setSortants(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+    e => console.error('Liste des étudiants indisponible', e)), [])
 
+  // Likes et votes de la campagne affichée, en direct
   useEffect(() => {
     if (!campagne?.id) return
-    chargerInteractions(campagne.id)
-      .then(setInteractions)
-      .catch(e => console.error('Likes / votes indisponibles', e))
-  }, [campagne?.id, version])
+    return ecouterInteractions(campagne.id, setInteractions, e => console.error('Likes / votes indisponibles', e))
+  }, [campagne?.id])
 
   const mediasParId = useMemo(() => Object.fromEntries(medias.map(m => [m.id, m])), [medias])
   const { votes, nbVotants } = useMemo(
@@ -179,9 +170,13 @@ function TableauDeBord() {
   const publies = deCampagne.filter(m => m.statut === 'accepte')
   const sansCampagne = medias.filter(m => !m.campagneId)
 
-  // Compteurs de likes de la galerie : corrigés en silence s'ils ne correspondent plus aux likes réels
+  // Compteurs de likes de la galerie : corrigés en silence s'ils ne correspondent plus aux likes réels.
+  // Une seule fois par campagne et par ouverture de l'Espace RI (pas à chaque like reçu en direct)
+  const dejaSynchronisees = useRef(new Set())
   useEffect(() => {
-    if (!campagne?.id || interactions.campagneId !== campagne.id) return
+    if (!campagne?.id || interactions.campagneId !== campagne.id || medias.length === 0) return
+    if (dejaSynchronisees.current.has(campagne.id)) return
+    dejaSynchronisees.current.add(campagne.id)
     const aVerifier = medias.filter(m => m.campagneId === campagne.id && m.statut === 'accepte')
     synchroniserCompteurs(aVerifier, interactions.likes)
       .catch(e => console.error('Synchronisation des compteurs de likes impossible', e))
@@ -192,7 +187,7 @@ function TableauDeBord() {
 
   const compteur = { attente: enAttente.length, publies: publies.length, etudiants: sortants.length }
   // Sans campagne, seules la création de campagne et les paramètres ont du sens
-  const SANS_CAMPAGNE = ['campagne', 'etudiants', 'parametres']
+  const SANS_CAMPAGNE = ['campagne', 'etudiants', 'textes', 'parametres']
   const sectionAffichee = !campagne && !SANS_CAMPAGNE.includes(section) ? 'campagne' : section
 
   function changerCampagne(id) {
@@ -213,7 +208,7 @@ function TableauDeBord() {
           <span><strong>Memories</strong> · Espace RI</span>
         </div>
         <div className="tb-admin-barre__actions">
-          <button type="button" className="tb-lien-discret" onClick={toutRecharger}>Actualiser</button>
+          <span className="tb-direct" title="Les nouveaux dépôts, likes et votes s’affichent automatiquement">Mises à jour en direct</span>
           <Link to="/" className="tb-lien-discret">Voir le site</Link>
           <button type="button" className="tb-btn tb-btn--contour" onClick={deconnexion}>Déconnexion</button>
         </div>
@@ -279,6 +274,7 @@ function TableauDeBord() {
           {sectionAffichee === 'etudiants' && (
             <Etudiants sortants={sortants} medias={medias} campagne={campagne} onChange={toutRecharger} />
           )}
+          {sectionAffichee === 'textes' && <Textes />}
           {sectionAffichee === 'parametres' && <Parametres />}
         </main>
       </div>

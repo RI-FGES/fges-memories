@@ -1348,6 +1348,44 @@
 .tb-rgpd__section ul { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
 .tb-a-completer { background: #fff1a8; color: var(--encre); padding: 0 4px; border-radius: 3px; }
 
+/* ---------- Espace RI : textes du site ---------- */
+
+.tb-encart code { font-size: 13px; background: rgba(255, 255, 255, 0.7); padding: 1px 5px; border-radius: 4px; }
+.tb-textes-onglets { flex-wrap: wrap; align-self: flex-start; }
+.tb-textes-champ { padding-top: 14px; border-top: 1px solid var(--trait-doux); }
+.tb-textes-champ .tb-label { display: inline-flex; align-items: center; gap: 8px; }
+.tb-textes-champ code { font-size: 12px; background: var(--papier-2); padding: 1px 5px; border-radius: 4px; }
+.tb-textes-liste { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.tb-textes-liste__ligne { display: flex; gap: 6px; width: 100%; align-items: center; }
+.tb-textes-liste__ligne .tb-input { flex: 1; }
+.tb-textes-faq { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+.tb-textes-faq__item {
+  width: 100%; display: flex; flex-direction: column; gap: 8px;
+  padding: 14px; border: 1.5px solid var(--trait-doux); border-radius: var(--arrondi);
+}
+.tb-btn-icone {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 8px;
+  border: 1px solid var(--trait); background: var(--blanc); color: var(--encre); cursor: pointer;
+}
+.tb-btn-icone:disabled { opacity: 0.35; cursor: default; }
+.tb-btn-icone--danger { color: var(--danger); }
+.tb-textes-barre {
+  position: sticky; bottom: 0; z-index: 4;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 12px 18px; border-radius: var(--arrondi);
+  background: var(--carte); border: 1px solid var(--trait-doux); box-shadow: var(--ombre-papier);
+  font-size: 14px; color: var(--texte-doux);
+}
+.tb-textes-barre.is-modifie { border-color: var(--attente); color: var(--attente); font-weight: 600; }
+
+/* ---------- Espace RI : indicateur « en direct » ---------- */
+
+.tb-direct { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--texte-doux); }
+.tb-direct::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--succes); box-shadow: 0 0 0 3px var(--succes-fond);
+}
+
 /* ---------- 9. Animations ---------- */
 
 @keyframes tb-apparition { from { opacity: 0; } to { opacity: 1; } }

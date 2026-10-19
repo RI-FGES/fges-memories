@@ -1,4 +1,4 @@
-import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore'
+import { collection, query, where, getDocs, writeBatch, doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 
 export const NB_LAUREATS = 5
@@ -15,6 +15,26 @@ export async function chargerInteractions(campagneId) {
     likes[mediaId] = (likes[mediaId] || 0) + 1
   })
   return { campagneId, likes, nbLikes: snapLikes.size, bulletins: snapBulletins.docs.map(d => d.data()) }
+}
+
+// Même chose, en direct : rappelle `surChange` à chaque nouveau like ou vote. Renvoie la fonction d'arrêt.
+export function ecouterInteractions(campagneId, surChange, surErreur) {
+  let likesDocs = null
+  let bulletinsDocs = null
+  const publier = () => {
+    if (!likesDocs || !bulletinsDocs) return // on attend les deux premières réponses
+    const likes = {}
+    likesDocs.forEach(d => {
+      const { mediaId } = d.data()
+      likes[mediaId] = (likes[mediaId] || 0) + 1
+    })
+    surChange({ campagneId, likes, nbLikes: likesDocs.length, bulletins: bulletinsDocs.map(d => d.data()) })
+  }
+  const stopLikes = onSnapshot(query(collection(db, 'likes'), where('campagneId', '==', campagneId)),
+    snap => { likesDocs = snap.docs; publier() }, surErreur)
+  const stopBulletins = onSnapshot(query(collection(db, 'bulletins'), where('campagneId', '==', campagneId)),
+    snap => { bulletinsDocs = snap.docs; publier() }, surErreur)
+  return () => { stopLikes(); stopBulletins() }
 }
 
 // Remet d'aplomb le compteur de likes affiché sur chaque souvenir (champ nbLikes)

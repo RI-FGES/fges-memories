@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import AuthProvider from './auth/AuthProvider'
 import { useAuth } from './auth/contexte'
 import CampagnesProvider from './components/CampagnesProvider'
+import TextesProvider from './components/TextesProvider'
 import Nav from './components/Nav'
 import AccesReserve from './pages/AccesReserve'
 import Connexion from './pages/Connexion'
@@ -55,16 +56,18 @@ function MiseEnPage() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/connexion" element={<Connexion />} />
-          {/* Accessible sans être connecté (obligation d'information RGPD) */}
-          <Route path="/donnees-personnelles" element={<DonneesPersonnelles />} />
-          {/* Espace RI : porte d'entrée séparée, réservée au staff (email + mot de passe) */}
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/*" element={<Protege><MiseEnPage /></Protege>} />
-        </Routes>
-      </BrowserRouter>
+      <TextesProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/connexion" element={<Connexion />} />
+            {/* Accessible sans être connecté (obligation d'information RGPD) */}
+            <Route path="/donnees-personnelles" element={<DonneesPersonnelles />} />
+            {/* Espace RI : porte d'entrée séparée, réservée au staff (email + mot de passe) */}
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/*" element={<Protege><MiseEnPage /></Protege>} />
+          </Routes>
+        </BrowserRouter>
+      </TextesProvider>
     </AuthProvider>
   )
 }

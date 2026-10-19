@@ -6,6 +6,8 @@ import { miniature } from '../lib/cloudinary'
 import CarteEmbarquement from '../components/CarteEmbarquement'
 import Tampon from '../components/Tampon'
 import { IconeEpingle, IconeLecture } from '../components/Icones'
+import Texte from '../components/Texte'
+import { useTextes } from '../lib/textes'
 
 // Photos de secours tant que la campagne n'a pas encore de souvenirs (dossier /public)
 const PHOTOS_PAR_DEFAUT = [
@@ -21,6 +23,7 @@ export default function Accueil() {
   const { active, chargement } = useCampagnes()
   const { medias } = useMediasCampagne(active?.id)
   const phase = phaseCampagne(active)
+  const { textes } = useTextes()
 
   const collage = medias.length >= 4 ? medias.slice(0, 4) : PHOTOS_PAR_DEFAUT
   const nbPays = new Set(medias.map(m => m.pays).filter(Boolean)).size
@@ -30,20 +33,17 @@ export default function Accueil() {
     <>
       <div className="tb-accueil">
         <section className="tb-accueil__texte">
-          <p className="tb-surtitre">Service des Relations Internationales · FGES</p>
+          <Texte className="tb-surtitre" valeur={textes.accueil_surtitre} />
           <div className="tb-accueil__titre-bloc">
-            <h1 className="tb-h1 tb-h1--xl">Le carnet de voyage des étudiants FGES</h1>
+            <Texte as="h1" className="tb-h1 tb-h1--xl" valeur={textes.accueil_titre} />
             {active && <p className="tb-manuscrit tb-annotation">édition {active.nom}</p>}
           </div>
-          <p className="tb-texte tb-texte--grand">
-            Tu es parti·e en échange ? Colle ton plus beau souvenir dans le carnet, like ceux des autres
-            et vote pour élire les lauréats du semestre.
-          </p>
+          <Texte className="tb-texte tb-texte--grand" valeur={textes.accueil_intro} />
 
           {chargement ? null : active ? (
             <CarteEmbarquement campagne={active} />
           ) : (
-            <p className="tb-encart">Aucune campagne n’est ouverte pour le moment. Reviens bientôt !</p>
+            <Texte className="tb-encart" valeur={textes.accueil_sans_campagne} />
           )}
 
           <div className="tb-actions">

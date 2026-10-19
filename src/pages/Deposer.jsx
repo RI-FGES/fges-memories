@@ -10,6 +10,9 @@ import { cleType } from '../lib/interactions'
 import { PAYS, FILIERES, DUREES } from '../lib/pays'
 import Polaroid from '../components/Polaroid'
 import Confettis from '../components/Confettis'
+import Charte from '../components/Charte'
+import Texte from '../components/Texte'
+import { useTextes } from '../lib/textes'
 import { IconeEnvoi } from '../components/Icones'
 
 const MAX_LEGENDE = 60
@@ -37,6 +40,7 @@ async function lireMesDepots(uid, campagneId) {
 export default function Deposer() {
   const { user } = useAuth()
   const { active, chargement } = useCampagnes()
+  const { textes } = useTextes()
   const phase = phaseCampagne(active)
 
   const [mesDepots, setMesDepots] = useState(null) // null = en cours de chargement
@@ -366,37 +370,19 @@ export default function Deposer() {
                 </p>
               </div>
 
-              <div className="tb-charte">
-                <p className="tb-charte__titre">Charte de bonne conduite</p>
-                <p>Les médias déposés représentent l’image de la FGES et de l’Université Catholique de Lille. Sera refusé tout contenu montrant :</p>
-                <ul>
-                  <li>nudité ou tenue indécente ;</li>
-                  <li>consommation d’alcool, de cigarettes ou de substances ;</li>
-                  <li>propos ou gestes offensants, discriminatoires ou irrespectueux ;</li>
-                  <li>tout contenu contraire aux valeurs de l’établissement.</li>
-                </ul>
-                <p>
-                  <strong>Bon à savoir pour les vidéos :</strong> évite les musiques connues (chansons du commerce).
-                  Si ta vidéo est lauréate, la FGES ne pourra pas la partager sur ses réseaux à cause des droits d’auteur.
-                  Préfère le son d’ambiance, ta voix ou une musique libre de droits.
-                </p>
-              </div>
+              <Charte titreComme="p" />
               <label className="tb-case">
                 <input type="checkbox" checked={charte} onChange={e => setCharte(e.target.checked)} />
-                <span>J’ai lu la charte et je certifie que mon média la respecte.</span>
+                <Texte as="span" valeur={textes.depot_case_charte} />
               </label>
               <label className="tb-case">
                 <input type="checkbox" checked={accordTiers} onChange={e => setAccordTiers(e.target.checked)} />
-                <span>
-                  Les personnes reconnaissables sur mon média sont d’accord pour qu’il soit publié sur FGES Memories
-                  et, s’il est lauréat, utilisé par la FGES.
-                </span>
+                <Texte as="span" valeur={textes.depot_case_tiers} />
               </label>
               <label className="tb-case">
                 <input type="checkbox" checked={consentement} onChange={e => setConsentement(e.target.checked)} />
                 <span>
-                  J’accepte que la FGES conserve ce média. S’il fait partie des lauréats, j’autorise la FGES à l’utiliser
-                  pour sa communication (réseaux sociaux, site web, promotion de la mobilité internationale).{' '}
+                  <Texte as="span" valeur={textes.depot_case_consentement} />{' '}
                   <Link to="/donnees-personnelles" target="_blank" rel="noreferrer">En savoir plus sur tes données</Link>
                 </span>
               </label>
